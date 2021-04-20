@@ -1,6 +1,7 @@
 import numpy as np
 import util, mathematics
 import matplotlib.pyplot as plt
+import csv
 
 # bravais vectors
 bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
@@ -73,7 +74,9 @@ def plot_moment(lattice, dimension):
     # Clear the figure, or it will stack onto the next
     plt.clf()
 
-
+# write loop information to file
+energies = []
+loops = []
 # Loop over many supercells with different sizes
 for n in range(1, 100):
     N = [n + 1, n + 1, 0]
@@ -93,6 +96,25 @@ for n in range(1, 100):
     E_dip = E_dip * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
     print("System: ", str(n+1) + 'x' + str(n+1), "\tE_dip = ", E_dip)
     plt.plot(n+1, E_dip, 'bo')
-plt.show()
+    energies.append(E_dip)
+    loops.append(n+1)
+# plt.show()
+plt.savefig("energy.pdf", dpi=300)
     # plot the configuration into figure
     # plot_moment(pos, n)
+
+# Calculate energy difference
+diff = []
+for i in range(-1, len(loops) - 1):
+    if i == 0:
+        e_diff = energies[0] - 0
+    else:
+        e_diff = energies[i + 1] - energies[i]
+    diff.append(e_diff)
+
+with open('energy.csv', 'a', newline='') as file_handler:
+    csv_writer = csv.writer(file_handler, delimiter=' ')
+    for i in range(len(loops)):
+        csv_writer.writerow([loops[i], energies[i], diff[i]])
+
+
