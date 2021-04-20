@@ -45,7 +45,7 @@ def buildSpins(lattice, config="Random"):
         y = np.zeros(len(lattice))
         z = np.ones(len(lattice)) * 4.548
     elif config == "PlusX":
-        x = np.ones(len(lattice))
+        x = np.ones(len(lattice)) * 4.548
         y = np.zeros(len(lattice))
         z = np.zeros(len(lattice))
     elif config == "PlusY":
