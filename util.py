@@ -103,6 +103,15 @@ def calculateEnergyBF(lattice, spins):
     return E
 
 
+# Calculate dipole-dipole energy of the center atom
+def calculate_energy_pbc(lattice, atom, spin, spins):
+    E = 0
+    for i in range(len(lattice)):
+        D = dipoleMatrix(lattice[i] - atom)
+        E += -0.5 * np.matmul(spin, np.matmul(D, spins[i]))
+    return E
+
+
 # calculate dipole-dipole energy on each seperate atom
 def calculateEachEnergyBF(lattice, spins):
     E_DDI_BF_each = []
