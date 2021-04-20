@@ -62,7 +62,7 @@ spins = util.buildSpins(pos, "PlusZ")
 # plt.savefig(str(name) + "x" + str(name) + ".pdf", dpi=300)
 
 # Construct function to plot magnetic moments configurations
-def plotMoment(lattice, dimension):
+def plot_moment(lattice, dimension):
     for i in range(len(lattice)):
         # print("Neighbour: ", i, "Coord: ", lattice[i])
         plt.plot(basis[0, 0], basis[0, 1], 'ro')
@@ -75,17 +75,24 @@ def plotMoment(lattice, dimension):
 
 
 # Loop over many supercells with different sizes
-for n in range(1, 500):
+for n in range(1, 100):
     N = [n + 1, n + 1, 0]
     pos = util.setup_pbc(bv, basis[0], N)
-    # build spins
+    # build spin for the center atom
+    spin = util.buildSpins(basis[0], "PlusZ")
+    # print(spin[0])
+    # build spins for neighbouring atoms
     spins = util.buildSpins(pos, "PlusZ")
     # for spin in spins:
     #     print(spin)
     # for i in range(len(pos)):
     #     print("Neighbour: ", i, "Coord: ", pos[i])
     # print("Atom: ", basis[0], "\n")
-    E_dip = util.calculateEnergyBF(pos, spins)
-    print("E_dip = ", E_dip)
+    E_dip = util.calculate_energy_pbc(pos, basis[0], spin[0], spins)
+    # covert energy to meV unit
+    E_dip = E_dip * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
+    print("System: ", str(n+1) + 'x' + str(n+1), "\tE_dip = ", E_dip)
+    plt.plot(n+1, E_dip, 'bo')
+plt.show()
     # plot the configuration into figure
-    plotMoment(pos, n)
+    # plot_moment(pos, n)
