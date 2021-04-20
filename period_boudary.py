@@ -78,7 +78,7 @@ def plot_moment(lattice, dimension):
 energies = []
 loops = []
 # Loop over many supercells with different sizes
-for n in range(1, 100):
+for n in range(1, 500):
     N = [n + 1, n + 1, 0]
     pos = util.setup_pbc(bv, basis[0], N)
     # build spin for the center atom
@@ -99,7 +99,7 @@ for n in range(1, 100):
     energies.append(E_dip)
     loops.append(n+1)
 # plt.show()
-plt.savefig("energy.pdf", dpi=300)
+plt.savefig("energy" + str(n + 1) + 'x' + str(n + 1) + ".pdf", dpi=300)
     # plot the configuration into figure
     # plot_moment(pos, n)
 
