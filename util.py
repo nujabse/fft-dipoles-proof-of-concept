@@ -50,7 +50,7 @@ def buildSpins(lattice, config="Random"):
         z = np.zeros(len(lattice))
     elif config == "PlusY":
         x = np.zeros(len(lattice))
-        y = np.ones(len(lattice))
+        y = np.ones(len(lattice)) * 4.548
         z = np.zeros(len(lattice))
     result = np.dstack((x, y, z)).reshape(len(lattice), 3)
     return result
@@ -105,6 +105,22 @@ def calculateEnergyBF(lattice, spins):
 
 # Calculate dipole-dipole energy of the center atom
 def calculate_energy_pbc(lattice, atom, spin, spins):
+    """
+    Calculate the dipolar energy of only the center atom
+    Parameters
+    ----------
+    lattice: list
+        A list of spins with periodical boundary conditions
+    atom: array
+        The central atom
+    spin: array
+        The spin of the central atom
+    spins: list
+        The spins of the lattice
+    Returns
+    -------
+    dipolar energy of the central atom
+    """
     E = 0
     for i in range(len(lattice)):
         D = dipoleMatrix(lattice[i] - atom)
