@@ -12,6 +12,8 @@ bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
 # basis vectors
 basis = np.array([[2.166922, 1.251048, 15.336891]])
 
+# TODO consider multiple basis vectors
+
 # number of basis cells in each direction
 N = [2, 2, 1]
 B = len(basis)
@@ -37,61 +39,67 @@ def plot_moment(lattice, dimension):
     plt.clf()
 
 
-# write loop information to file
-energies = []
-loops = []
 # build spin for the center atom
-spin = util.buildSpins(basis[0], "PlusX")[0]
+spin = util.buildSpins(basis[0], "PlusY")[0]
+
+
+# Construct a class to return multiple values
+class EnergyInLoop():
+    def __init__(self):
+        self.lists = []
+
+
 # Loop over many supercells with different sizes
 def calc_supercell_dipolar_energy(supercell):
-    # create a dict to store return value
-    results = {}
     # for n in range(1, 1250):
+    output = {}
     N = [supercell + 1, supercell + 1, 0]
     # build spins for the neighbouring atoms
     pos = util.setup_pbc(bv, basis[0], N)
     spins = util.buildSpins(pos, "PlusY")
     # build spins for neighbouring atoms
-    spins = util.buildSpins(pos, "PlusZ")
-    # for spin in spins:
-    #     print(spin)
-    # for i in range(len(pos)):
-    #     print("Neighbour: ", i, "Coord: ", pos[i])
-    # print("Atom: ", basis[0], "\n")
     E_dip = util.calculate_energy_pbc(pos, basis[0], spin, spins)
     # covert energy to meV unit
     E_dip = E_dip * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
     print("System: ", str(supercell + 1) + 'x' + str(supercell + 1), "\tE_dip = ", E_dip)
-    # plt.plot(supercell+1, E_dip, 'bo')
-    # energies.append(E_dip)
-    # loops.append(supercell + 1)
-    results["Loop"] = supercell
-    results["Energy"] = E_dip
-    return results
+    output["Loop"] = supercell + 1
+    output["Energy"] = E_dip
+    return output
 
-
-# plt.show()
-plt.savefig("energy" + str(n + 1) + 'x' + str(n + 1) + ".pdf", dpi=300)
-    # plot the configuration into figure
-    # plot_moment(pos, n)
 
 # now use multi-processor to speed up the code
+results = []
+Number_of_cells = 1250
+supercells = range(1, Number_of_cells)
+
+
+def main():
+    executor = concurrent.futures.ProcessPoolExecutor()
+    for result in executor.map(calc_supercell_dipolar_energy, supercells):
+        results.append(result)
+
+
+# have to add this, or python will complain it can not sprawn new process
 if __name__ == '__main__':
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        supercells = range(1, 1250)
-        results = executor.map(calc_supercell_dipolar_energy, supercells)
-# Calculate energy difference
+    main()
+
+# calculate energy difference
 diff = []
-for i in range(-1, len(loops) - 1):
+for i in range(-1, len(results) - 1):
     if i == 0:
-        e_diff = energies[0] - 0
+        e_diff = results[0]["Energy"] - 0 # Here it may fail because i is an iterator
     else:
-        e_diff = energies[i + 1] - energies[i]
+        e_diff = results[i + 1]["Energy"] - results[i]["Energy"]
     diff.append(e_diff)
 
+# write output to csv file
 with open('energy.csv', 'w', newline='') as file_handler:
     csv_writer = csv.writer(file_handler, delimiter=' ')
-    for i in range(len(loops)):
-        csv_writer.writerow([loops[i], energies[i], diff[i]])
+    for i in range(len(results)):
+        csv_writer.writerow([results[i]["Loop"], results[i]["Energy"], diff[i]])
 
-
+# plot the energy convergence plot
+for i in range(len(results)):
+    plt.plot(results[i]["Loop"], results[i]["Energy"], 'bo')
+# plt.show()
+plt.savefig("energy" + str(Number_of_cells + 1) + 'x' + str(Number_of_cells + 1) + ".pdf", dpi=300)
