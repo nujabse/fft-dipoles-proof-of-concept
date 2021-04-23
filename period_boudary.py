@@ -1,4 +1,5 @@
 import numpy as np
+import concurrent.futures
 import util, mathematics
 import matplotlib.pyplot as plt
 import csv
@@ -22,6 +23,7 @@ np.set_printoptions(precision=8)
 pos = util.setUpLattice(bv, N, basis)
 spins = util.buildSpins(pos, "PlusZ")
 
+
 # Construct function to plot magnetic moments configurations
 def plot_moment(lattice, dimension):
     for i in range(len(lattice)):
@@ -34,15 +36,21 @@ def plot_moment(lattice, dimension):
     # Clear the figure, or it will stack onto the next
     plt.clf()
 
+
 # write loop information to file
 energies = []
 loops = []
 # build spin for the center atom
 spin = util.buildSpins(basis[0], "PlusX")[0]
 # Loop over many supercells with different sizes
-for n in range(1, 500):
-    N = [n + 1, n + 1, 0]
+def calc_supercell_dipolar_energy(supercell):
+    # create a dict to store return value
+    results = {}
+    # for n in range(1, 1250):
+    N = [supercell + 1, supercell + 1, 0]
+    # build spins for the neighbouring atoms
     pos = util.setup_pbc(bv, basis[0], N)
+    spins = util.buildSpins(pos, "PlusY")
     # build spins for neighbouring atoms
     spins = util.buildSpins(pos, "PlusZ")
     # for spin in spins:
@@ -53,15 +61,25 @@ for n in range(1, 500):
     E_dip = util.calculate_energy_pbc(pos, basis[0], spin, spins)
     # covert energy to meV unit
     E_dip = E_dip * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
-    print("System: ", str(n+1) + 'x' + str(n+1), "\tE_dip = ", E_dip)
-    plt.plot(n+1, E_dip, 'bo')
-    energies.append(E_dip)
-    loops.append(n+1)
+    print("System: ", str(supercell + 1) + 'x' + str(supercell + 1), "\tE_dip = ", E_dip)
+    # plt.plot(supercell+1, E_dip, 'bo')
+    # energies.append(E_dip)
+    # loops.append(supercell + 1)
+    results["Loop"] = supercell
+    results["Energy"] = E_dip
+    return results
+
+
 # plt.show()
 plt.savefig("energy" + str(n + 1) + 'x' + str(n + 1) + ".pdf", dpi=300)
     # plot the configuration into figure
     # plot_moment(pos, n)
 
+# now use multi-processor to speed up the code
+if __name__ == '__main__':
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        supercells = range(1, 1250)
+        results = executor.map(calc_supercell_dipolar_energy, supercells)
 # Calculate energy difference
 diff = []
 for i in range(-1, len(loops) - 1):
