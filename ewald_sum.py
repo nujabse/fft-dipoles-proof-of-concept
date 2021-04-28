@@ -3,10 +3,9 @@ import numpy as np
 import math
 from scipy import integrate
 from scipy.special import erf
-from scipy.constants import c
+# from scipy.constants import c
 
 import util
-
 
 np.set_printoptions(precision=8)
 # Set lattice structure
@@ -14,25 +13,42 @@ bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
                [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
                [0.0000000000000000, 0.0000000000000000, 30.9099998474000017]]
               )
-# basis vectors
-basis = np.array([[2.166922, 1.251048, 15.336891]])
+# basis vectors in *direct coordinates*, will transform to cartesian coordinates in constructing lattice
+# basis = np.array([[0.66667, 0.33333, 0.49617895]])
+basis = np.zeros((1, 3))     # Set the basis to the center of the lattice
 # number of basis cells in each direction
-N = [2, 2, 1]
+N = [60, 60, 1]
 B = len(basis)
 
 # Precision of printed output
 np.set_printoptions(precision=8)
 
-# Set up a system
-pos = util.setUpLattice(bv, N, basis)
-spins = util.buildSpins(pos, "PlusZ")
 
-# Get the reciprocal lattice vector
+# Get the reciprocal lattice vector, see Kitchens "surfaces.pdf", P. 39
+# Also see the definition from "Introduction to solid state physics", P. 23
 def reciprocal(lattice_vector):
-    Astar = np.linalg.inv(lattice_vector).T
-    gstar = np.dot(Astar, Astar.T)
-    return gstar
+    Astar = 2 * np.pi * np.linalg.inv(lattice_vector).T
+    return Astar
 
+
+# Test the reciprocal lattice vector formula, notice we add  2 pi constant here
+# for i in range(3):
+#     for j in range(3):
+#         result = np.dot(bv[i], rec[j])
+#         print("The dot product between {} and {} is {}\n".format(i, j, result))
+
+# Set lattice vectors in real space and reciprocal space
+atom = basis[0]
+r_pos = util.setup_pbc(bv, atom, N)
+rec = reciprocal(bv)
+print("Reciprocal lattice vectors are :\n {}".format(rec))
+g_pos = util.setup_pbc(rec, atom, N)
+# Print out the lattice vectors in real space and reciprocal spaces
+# for i in range(len(r_pos)):
+#     print("Real space vector {} is: {}".format(i, r_pos[i]))
+#     print("Reciprocal vector {} is: {}".format(i, g_pos[i]))
+#     # Test the product of Real and Reciprocal vectors
+#     print("Dot product of the two vectors is {}".format(np.dot(r_pos[i], g_pos[i])))
 # Ewald sum to get the Madelung constants
 M = 0.0
 # Define some constant values
@@ -41,12 +57,13 @@ sigma = 2  # need testing
 A = np.linalg.norm(np.cross(bv[0], bv[1]))
 print("Unit cell area A = {}".format(A))
 # lists of lattice vectors in real space and reciprocal space
-r_lengths = []
-g_lengths = []
+# Note we are using Rydberg unit of length
+r_lengths = [np.linalg.norm(i) * 2 for i in r_pos]    # in a_0 unit
+g_lengths = [np.linalg.norm(j) * 2 for j in g_pos]
 
 for r_length in r_lengths:
     if r_length != 0:
-        sum_1 = (erf(r_length / (2 * sigma))) /  (r_length ** 3)
+        sum_1 = (erf(r_length / (2 * sigma))) / (r_length ** 3)
         sum_2 = (np.exp(- r_length ** 2) / (4 * sigma ** 2)) / (sigma * math.sqrt(np.pi) * r_length ** 2)
         M = M + sum_1 + sum_2
 
@@ -60,10 +77,16 @@ M = M - 1 / (6 * (sigma ** 3) * math.sqrt(np.pi)) + 2 * math.sqrt(np.pi) / (A * 
 print("M = {}".format(M))
 
 # Calculate the dipole-dipole energy
-
-moments = []
-atom = 1
+# Note that we are working in Rydberg units here
+# Define some constants
+c = 274
+mu_b = math.sqrt(2)
+magnetic_moment = 4.548 * mu_b
+moment_vector = np.array([0, 0, 1])
 E_dd = 0
 
-for i in moments:
-   E_dd = E_dd + atom * i / (c ** 2) * M
+for i in r_pos:
+    E_dd = E_dd + magnetic_moment ** 2 / (c ** 2) * M * np.dot(moment_vector, moment_vector)
+    E_dd = E_dd / (N[0] * N[1] - 1)
+
+print("Dipole energy for the central atom is: {}".format(E_dd))
