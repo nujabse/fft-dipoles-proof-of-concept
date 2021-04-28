@@ -43,12 +43,6 @@ def plot_moment(lattice, dimension):
 spin = util.buildSpins(basis[0], "PlusY")[0]
 
 
-# Construct a class to return multiple values
-class EnergyInLoop():
-    def __init__(self):
-        self.lists = []
-
-
 # Loop over many supercells with different sizes
 def calc_supercell_dipolar_energy(supercell):
     # for n in range(1, 1250):
