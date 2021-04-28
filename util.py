@@ -17,8 +17,10 @@ def setUpLattice(bv, N, basis=[[0, 0, 0]]):
 
 
 # Try to expand the lattice according to periodical boundary conditions
-def setup_pbc(bv, atom, cell_dimension):
+def setup_pbc(vectors, atom, cell_dimension):
     result = []
+    # first convert atom to cartesian coordinates
+    atom = np.dot(atom, vectors)
     for i in range(-cell_dimension[0], cell_dimension[0] + 1):
         for j in range(-cell_dimension[1], cell_dimension[1] + 1):
             # convert array element to basic type
@@ -26,7 +28,7 @@ def setup_pbc(bv, atom, cell_dimension):
             if i == 0 and j == 0:
                 continue
             else:
-                super_cell_atom = atom + i * bv[0] + j * bv[1]
+                super_cell_atom = atom + i * vectors[0] + j * vectors[1]
             result.append(super_cell_atom)
     return result
 
