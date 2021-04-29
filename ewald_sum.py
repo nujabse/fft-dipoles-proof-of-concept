@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 from scipy import integrate
-from scipy.special import erf
-# from scipy.constants import c
+from scipy.special import erfc
+from scipy.constants import c
 
 import util
 
@@ -17,7 +17,7 @@ bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
 # basis = np.array([[0.66667, 0.33333, 0.49617895]])
 basis = np.zeros((1, 3))     # Set the basis to the center of the lattice
 # number of basis cells in each direction
-N = [60, 60, 1]
+N = [90, 90, 1]
 B = len(basis)
 
 # Precision of printed output
@@ -52,24 +52,24 @@ g_pos = util.setup_pbc(rec, atom, N)
 # Ewald sum to get the Madelung constants
 M = 0.0
 # Define some constant values
-sigma = 2  # need testing
+sigma = 2        #need testing
 # Get the area of the unit cell using cross product
 A = np.linalg.norm(np.cross(bv[0], bv[1]))
 print("Unit cell area A = {}".format(A))
 # lists of lattice vectors in real space and reciprocal space
 # Note we are using Rydberg unit of length
-r_lengths = [np.linalg.norm(i) * 2 for i in r_pos]    # in a_0 unit
-g_lengths = [np.linalg.norm(j) * 2 for j in g_pos]
+r_lengths = [np.linalg.norm(i) for i in r_pos]    # in a_0 unit
+g_lengths = [np.linalg.norm(j) for j in g_pos]
 
 for r_length in r_lengths:
     if r_length != 0:
-        sum_1 = (erf(r_length / (2 * sigma))) / (r_length ** 3)
+        sum_1 = (erfc(r_length / (2 * sigma))) / (r_length ** 3)
         sum_2 = (np.exp(- r_length ** 2) / (4 * sigma ** 2)) / (sigma * math.sqrt(np.pi) * r_length ** 2)
         M = M + sum_1 + sum_2
 
 for g_length in g_lengths:
     if g_length != 0:
-        sum_3 = g_length * erf(g_length * sigma)
+        sum_3 = g_length * erfc(g_length * sigma)
         sum_4 = 1 / (sigma * math.sqrt(np.pi)) * np.exp(- g_length ** 2 * (sigma ** 2))
         M = M - (2 * np.pi / A) * (sum_3 + sum_4)
 
@@ -79,14 +79,13 @@ print("M = {}".format(M))
 # Calculate the dipole-dipole energy
 # Note that we are working in Rydberg units here
 # Define some constants
-c = 274
-mu_b = math.sqrt(2)
-magnetic_moment = 4.548 * mu_b
+# mu_b = math.sqrt(2)
+magnetic_moment = 4.548
 moment_vector = np.array([0, 0, 1])
 E_dd = 0
 
 for i in r_pos:
     E_dd = E_dd + magnetic_moment ** 2 / (c ** 2) * M * np.dot(moment_vector, moment_vector)
-    E_dd = E_dd / (N[0] * N[1] - 1)
+    E_dd = E_dd
 
 print("Dipole energy for the central atom is: {}".format(E_dd))
