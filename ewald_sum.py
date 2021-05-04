@@ -3,7 +3,7 @@ import numpy as np
 import math
 from scipy import integrate
 from scipy.special import erfc
-from scipy.constants import c
+# from scipy.constants import c
 
 import util
 
@@ -26,53 +26,58 @@ def reciprocal(lattice_vector):
     Astar = 2 * np.pi * np.linalg.inv(lattice_vector).T
     return Astar
 
+
+# increase the size of the supercell
+def supercell_vector(bravis, dim):
+    supercell = bravis * dim
+    return supercell
 # Set lattice vectors in real space and reciprocal space
 atom = basis[0]
 # Get the area of the unit cell using cross product
 A = np.linalg.norm(np.cross(bv[0], bv[1]))
 # print("Unit cell area A = {}".format(A))
 # Define some constant values
-sigma = 1.15        #need testing, here we choose sigma = 5/ L
+sigma = 1.15        # need testing, here we choose sigma = 5/ L
 magnetic_moment = 4.548
+c = 274.072
 moment_vector = np.array([0, 0, 1])
-E_dd = 0
 
 
-# Ewald sum to get the Madelung constants
-def madlung_constant(dimension):
-    M = 0.0
-    r_pos = util.setup_pbc(bv, atom, dimension)
+# Ewald sum to get the Madelung constants, notice that the constant is in  1/m^3 unit
+def madlung_constant(dim):
+    m_constant = 0.0
+    r_pos = util.setup_pbc(bv, atom, dim)
     rec = reciprocal(bv)
     # print("Reciprocal lattice vectors are :\n {}".format(rec))
-    g_pos = util.setup_pbc(rec, atom, dimension)
-    r_lengths = [np.linalg.norm(i) for i in r_pos]    # in a_0 unit
-    g_lengths = [np.linalg.norm(j) for j in g_pos]
-    for r_length in r_lengths:
-        if r_length != 0:
-            sum_1 = (erfc(r_length / (2 * sigma))) / (r_length ** 3)
-            sum_2 = (np.exp(- r_length ** 2) / (4 * sigma ** 2)) / (sigma * math.sqrt(np.pi) * r_length ** 2)
-            M = M + sum_1 + sum_2
+    g_pos = util.setup_pbc(rec, atom, dim)
+    # Calculate only the sqrt of x and y of the position vector
+    r_vector_lengths = [np.linalg.norm(i - atom) for i in r_pos]    # in a_0 unit
+    g_vector_lengths = [np.linalg.norm(j - atom) for j in g_pos]
+    for r in r_vector_lengths:
+        if r != 0:
+            sum_1 = (erfc(r / (2 * sigma))) / (r ** 3)
+            sum_2 = (np.exp(- r ** 2 / (4 * sigma ** 2))) / (sigma * math.sqrt(np.pi) * r ** 2)
+            m_constant = m_constant + sum_1 + sum_2
 
-    for g_length in g_lengths:
-        if g_length != 0:
-            sum_3 = g_length * erfc(g_length * sigma)
-            sum_4 = 1 / (sigma * math.sqrt(np.pi)) * np.exp(- g_length ** 2 * (sigma ** 2))
-            M = M - (2 * np.pi / A) * (sum_3 + sum_4)
+    for g in g_vector_lengths:
+        if g != 0:
+            sum_3 = g * erfc(g * sigma)
+            sum_4 = 1 / (sigma * math.sqrt(np.pi)) * np.exp(- g ** 2 * (sigma ** 2))
+            m_constant = m_constant - (2 * np.pi / A) * (sum_3 - sum_4)
 
-    M = M - 1 / (6 * (sigma ** 3) * math.sqrt(np.pi)) + 2 * math.sqrt(np.pi) / (A * sigma)
-    return M, r_lengths, g_lengths
-
-
-def dipoler_energy(dimension, length, madlung):
-    E_dd = 0
-    for i in length:
-        E_dd = E_dd + magnetic_moment ** 2 / (c ** 2) * madlung * np.dot(moment_vector, moment_vector)
-        E_dd = E_dd / len(length)
-    print("{} \t Madlung = {}\t E_dd = {}".format(dimension[0], madlung, E_dd))
-    return E_dd
+    m_constant = m_constant - 1 / (6 * (sigma ** 3) * math.sqrt(np.pi)) + 2 * math.sqrt(np.pi) / (A * sigma)
+    return m_constant, r_vector_lengths, g_vector_lengths
 
 
-for n in range(2, 100):
+def dipoler_energy(dim, length, madlung):
+    energy = 0
+    for i in range(len(length)):
+        energy = energy + magnetic_moment ** 2 / (c ** 2) * madlung * np.dot(moment_vector, moment_vector)
+    print("{} \t Madlung = {}\t E_dd = {}".format(dim[0], madlung, energy))
+    return energy
+
+
+for n in range(2, 150):
     dimension = [n, n, 1]
     M, r_lengths, g_lengths = madlung_constant(dimension)
     E_dd = dipoler_energy(dimension, r_lengths, M)
