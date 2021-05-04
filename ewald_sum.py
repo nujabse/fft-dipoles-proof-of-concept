@@ -1,18 +1,21 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-from scipy import integrate
 from scipy.special import erfc
 # from scipy.constants import c
 
 import util
 
 np.set_printoptions(precision=8)
-# Set lattice structure
+# Set lattice structure, notice that the lattice constant is in Angstrom units
+# We will transform it into Rydeberg Atomic units in the calculation of energy
 bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
                [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
                [0.0000000000000000, 0.0000000000000000, 30.9099998474000017]]
               )
+
+# Transform lattice units into Rydberg atomic units (a.u.)
+bv = bv * 1.88973
 # basis vectors in *direct coordinates*, will transform to cartesian coordinates in constructing lattice
 # basis = np.array([[0.66667, 0.33333, 0.49617895]])
 basis = np.zeros((1, 3))     # Set the basis to the center of the lattice
@@ -37,13 +40,16 @@ atom = basis[0]
 A = np.linalg.norm(np.cross(bv[0], bv[1]))
 # print("Unit cell area A = {}".format(A))
 # Define some constant values
-sigma = 1.15        # need testing, here we choose sigma = 5/ L
+sigma = 0.5        # need testing, here we choose sigma = 5/ L
 magnetic_moment = 4.548
 c = 274.072
 moment_vector = np.array([0, 0, 1])
+sqpi = math.sqrt(np.pi)
 
 
 # Ewald sum to get the Madelung constants, notice that the constant is in  1/m^3 unit
+# mainly uses the formula described in
+# https://doi.org/10.1103/physrevb.51.9552
 def madlung_constant(dim):
     m_constant = 0.0
     r_pos = util.setup_pbc(bv, atom, dim)
@@ -69,18 +75,49 @@ def madlung_constant(dim):
     return m_constant, r_vector_lengths, g_vector_lengths
 
 
-def dipoler_energy(dim, length, madlung):
-    energy = 0
-    for i in range(len(length)):
-        energy = energy + magnetic_moment ** 2 / (c ** 2) * madlung * np.dot(moment_vector, moment_vector)
-    print("{} \t Madlung = {}\t E_dd = {}".format(dim[0], madlung, energy))
+def dipoler_energy(loop, mom_v, madlung):
+    # define a conversion matrix in spherical coordinates
+    mat = np.array([[-1/2, 0, 0], [0, -1/2, 0], [0, 0, 1]])
+    # First consider relations between magnetic moment orientation and madelung constant
+    madlung = madlung * np.linalg.multi_dot([mom_v, mat, mom_v])
+    energy = magnetic_moment ** 2 / (c ** 2) * madlung
+    # convert to meV unit
+    energy = 13.6 * energy * 1000
+    print("{} \t Madlung = {}\t E_dd = {}".format(loop, madlung, energy))
     return energy
 
+# Use the SI unit formula described in "10.1103/PhysRevB.88.144421"
+# First define some auxiliary functions B and C
+def B(r):
+    out = (1 / r ** 3) * (erfc(sigma * r) + ((2 * sigma * r) / sqpi) * np.exp(- sigma ** 2 * r ** 2))
+    return out
 
-for n in range(2, 150):
+
+def C(r):
+    out = (1 / r ** 5) * (3 * erfc(sigma * r) +
+                          2 * sigma * r / sqpi * (3 + 2 * sigma ** 2 * r ** 2) * np.exp(-sigma ** 2 * r ** 2))
+    return out
+
+# Calculate the real part of the dipolar energy
+def E_r(r):
+    pass
+
+
+# Calculate the long range reciprocal part of the dipolar energy
+def E_k(r):
+    pass
+
+
+# Calculate the self part of the dipolar energy. Here we omit the surface part contribution
+def E_self(r):
+    pass
+
+
+#  start calculation
+for n in range(2, 120):
     dimension = [n, n, 1]
     M, r_lengths, g_lengths = madlung_constant(dimension)
-    E_dd = dipoler_energy(dimension, r_lengths, M)
+    E_dd = dipoler_energy(n, moment_vector, M)
     plt.plot(n, E_dd, 'ob')
     # plt.plot(n, M, 'or')
 plt.show()
