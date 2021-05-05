@@ -8,16 +8,22 @@ import util
 
 # Set lattice structure, notice that the lattice constant is in Angstrom units
 # We will transform it into Rydeberg Atomic units in the calculation of energy
-bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
-               [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
-               [0.0000000000000000, 0.0000000000000000, 30.9099998474000017]]
-              )
-
+# MnBi2Te4 crystal structure
+# bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
+#                [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
+#                [0.0000000000000000, 0.0000000000000000, 30.9099998474000017]]
+#               )
+# CrI3 crystal structure
+bv = np.array([[6.718390000000000, 0.000000000000000, 0.000000000000000],
+               [-3.359194999999999, 5.818296412531336, 0.000000000000000],
+               [0.000000000000001, 0.000000000000002, 19.806999999999999]])
 # Transform lattice units into Rydberg atomic units (a.u.)
 bv = bv * 1.88973
 # basis vectors in *direct coordinates*, will transform to cartesian coordinates in constructing lattice
-basis = np.array([[0.66667, 0.33333, 0.49617895]])
+# basis = np.array([[0.66667, 0.33333, 0.49617895]])  # basis position for MnBi2Te4
 # basis = np.zeros((1, 3))     # Set the basis to the center of the lattice
+basis = np.array([[0.333333999, 0.666666031, 0.499999970],
+                  [0.666665971, 0.333333999, 0.499999970]])  # basis position for CrI3
 # Precision of printed output
 np.set_printoptions(precision=8)
 
