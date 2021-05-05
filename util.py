@@ -33,7 +33,7 @@ def setup_pbc(vectors, atom, cell_dimension):
     return result
 
 
-# builds spins on the lattice (lenght normalized to 1)
+# builds spins on the lattice (length normalized to 1)
 def buildSpins(lattice, config="Random"):
     if config == "Random":
         phi = np.random.rand(len(lattice))
