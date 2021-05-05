@@ -33,6 +33,21 @@ def setup_pbc(vectors, atom, cell_dimension):
     return result
 
 
+def setup_pbc_multiple_basis(vectors, atom, basis, cell_dimension):
+    result = []
+    # Convert input atom from fractional coordinates to cartesian coordinates
+    atom = np.dot(atom, vectors)
+    # First only consider the atoms that are the mirror of the center atom
+    result = setup_pbc(vectors, atom, cell_dimension)
+    # Then consider the other atoms in the basis to construct PBC supercells
+    for a in range(2, len(basis) + 1):
+        for i in range(-cell_dimension[0], cell_dimension[0] + 1):
+            for j in range(-cell_dimension[1], cell_dimension[1] + 1):
+                supercell_atoms = atom + i * vectors[0] + j * vectors[1]
+                result.append(supercell_atoms)
+    return result
+
+
 # builds spins on the lattice (length normalized to 1)
 def buildSpins(lattice, config="Random"):
     if config == "Random":
