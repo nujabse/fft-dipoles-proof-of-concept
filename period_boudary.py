@@ -26,17 +26,7 @@ pos = util.setUpLattice(bv, N, basis)
 spins = util.buildSpins(pos, "PlusZ")
 
 
-# Construct function to plot magnetic moments configurations
-def plot_moment(lattice, dimension):
-    for i in range(len(lattice)):
-        # print("Neighbour: ", i, "Coord: ", lattice[i])
-        plt.plot(basis[0, 0], basis[0, 1], 'ro')
-        plt.plot(lattice[i][0], lattice[i][1], 'bo')
-        plt.text(lattice[i][0], lattice[i][1], str(i))
-    dimension = dimension + 1
-    plt.savefig(str(dimension) + "x" + str(dimension) + ".pdf", dpi=300)
-    # Clear the figure, or it will stack onto the next
-    plt.clf()
+
 
 
 # build spin for the center atom
