@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 fac = 0.9274
 NN = 6  # Number of nearest neighbours
@@ -17,10 +18,10 @@ def setUpLattice(bv, N, basis=[[0, 0, 0]]):
 
 
 # Try to expand the lattice according to periodical boundary conditions
-def setup_pbc(vectors, atom, cell_dimension):
+def setup_pbc(vectors, basis_atom, cell_dimension):
     result = []
     # first convert atom to cartesian coordinates
-    atom = np.dot(atom, vectors)
+    basis_atom = np.dot(basis_atom, vectors)
     for i in range(-cell_dimension[0], cell_dimension[0] + 1):
         for j in range(-cell_dimension[1], cell_dimension[1] + 1):
             # convert array element to basic type
@@ -28,24 +29,63 @@ def setup_pbc(vectors, atom, cell_dimension):
             if i == 0 and j == 0:
                 continue
             else:
-                super_cell_atom = atom + i * vectors[0] + j * vectors[1]
+                super_cell_atom = basis_atom + i * vectors[0] + j * vectors[1]
             result.append(super_cell_atom)
     return result
 
 
-def setup_pbc_multiple_basis(vectors, atom, basis, cell_dimension):
-    result = []
-    # Convert input atom from fractional coordinates to cartesian coordinates
-    atom = np.dot(atom, vectors)
+def setup_pbc_multiple_basis(vectors, basis_atom, basis_atoms, cell_dimension):
     # First only consider the atoms that are the mirror of the center atom
-    result = setup_pbc(vectors, atom, cell_dimension)
-    # Then consider the other atoms in the basis to construct PBC supercells
-    for a in range(2, len(basis) + 1):
-        for i in range(-cell_dimension[0], cell_dimension[0] + 1):
-            for j in range(-cell_dimension[1], cell_dimension[1] + 1):
-                supercell_atoms = atom + i * vectors[0] + j * vectors[1]
-                result.append(supercell_atoms)
+    # Notice that here we are assuming that all the magnetic moments have the same direction (e.g. CrI3)
+    # For magnetic moments that point in reverse directions, may need to manually calculate each dipolar contribution
+    result = []
+    # Convert all basis atoms to cartesian coordinates
+    for i in range(-cell_dimension[0], cell_dimension[0] + 1):
+        for j in range(-cell_dimension[1], cell_dimension[1] + 1):
+            for base in basis_atoms:
+                if np.array_equal(base, basis_atom):
+                    if i == 0 and j == 0:
+                        continue
+                    else:
+                        base = np.dot(base, vectors)
+                        super_cell_atom = base + vectors[0] * i + vectors[1] * j
+                    result.append(super_cell_atom)
+                else:
+                    # print("Working on the second basis atom")
+                    base = np.dot(base, vectors)
+                    super_cell_atom = base + vectors[0] * i + vectors[1] * j
+                    result.append(super_cell_atom)
     return result
+    # for base in basis_atoms:
+    #     if np.array_equal(base, basis_atom):
+    #         result = setup_pbc(vectors, base, cell_dimension)
+    #     else:
+    #         print("Running second")
+    #         second_result = setup_pbc(vectors, base, cell_dimension)
+    #         result = result + second_result
+    # return result
+
+
+# Construct function to plot magnetic moments configurations
+def plot_moment(lattice, dimension, basis_atoms, vector):
+    # Clear the figure, or it will stack onto the next
+    plt.clf()
+    plt.grid()
+    # First plot the super lattice
+    for i in range(len(lattice)):
+        print("Neighbour: ", i, "Coord: ", lattice[i])
+        plt.plot(lattice[i][0], lattice[i][1], 'bo', markersize=5)
+        # add text to each atom in the lattice
+        plt.text(lattice[i][0], lattice[i][1], str(i), fontsize=6)
+    # Second plot the basis atoms, in case overshadowed by blue dots
+    for basis_atom in basis_atoms:
+        basis_atom = np.dot(basis_atom, vector)
+        plt.plot(basis_atom[0], basis_atom[1], 'ro', markersize=5)
+    dimension = dimension + 1
+    # fig.tight_layout()
+    # make plot to have equal axis length
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.savefig(str(dimension) + "x" + str(dimension) + ".pdf", dpi=300)
 
 
 # builds spins on the lattice (length normalized to 1)
