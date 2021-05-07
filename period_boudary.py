@@ -10,24 +10,14 @@ bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
                [0.0000000000000000, 0.0000000000000000, 30.9099998474000017]]
               )
 # basis vectors
-basis = np.array([[2.166922, 1.251048, 15.336891]])
+basis = np.array([[0.66667, 0.33333, 0.49617895]])  # basis position for MnBi2Te4 (in fractional coordinates)
+# As numpy.dot has problems with multiprocessing, we are here directly convert fractional coordinates (once and all)
+basis = np.dot(basis, bv)
+# basis = np.array([[2.166922, 1.251048, 15.336891]]) # basis position for MnBi2Te4 (in cartesian coordinates)
 
 # TODO consider multiple basis vectors
-
-# number of basis cells in each direction
-N = [2, 2, 1]
-B = len(basis)
-
 # Precision of printed output
 np.set_printoptions(precision=8)
-
-# Set up a system
-pos = util.setUpLattice(bv, N, basis)
-spins = util.buildSpins(pos, "PlusZ")
-
-
-
-
 
 # build spin for the center atom
 spin = util.buildSpins(basis[0], "PlusY")[0]
@@ -37,7 +27,7 @@ spin = util.buildSpins(basis[0], "PlusY")[0]
 def calc_supercell_dipolar_energy(supercell):
     # for n in range(1, 1250):
     output = {}
-    N = [supercell + 1, supercell + 1, 0]
+    N = [supercell, supercell, 0]
     # build spins for the neighbouring atoms
     pos = util.setup_pbc(bv, basis[0], N)
     spins = util.buildSpins(pos, "PlusY")
@@ -45,16 +35,16 @@ def calc_supercell_dipolar_energy(supercell):
     E_dip = util.calculate_energy_pbc(pos, basis[0], spin, spins)
     # covert energy to meV unit
     E_dip = E_dip * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
-    print("System: ", str(supercell + 1) + 'x' + str(supercell + 1), "\tE_dip = ", E_dip)
-    output["Loop"] = supercell + 1
+    print("System: ", str(supercell) + 'x' + str(supercell), "\tE_dip = ", E_dip)
+    output["Loop"] = supercell
     output["Energy"] = E_dip
     return output
 
 
 # now use multi-processor to speed up the code
 results = []
-Number_of_cells = 1250
-supercells = range(1, Number_of_cells)
+Number_of_cells = 200
+supercells = range(2, Number_of_cells)
 
 
 def main():
@@ -86,4 +76,4 @@ with open('energy.csv', 'w', newline='') as file_handler:
 for i in range(len(results)):
     plt.plot(results[i]["Loop"], results[i]["Energy"], 'bo')
 # plt.show()
-plt.savefig("energy" + str(Number_of_cells + 1) + 'x' + str(Number_of_cells + 1) + ".pdf", dpi=300)
+plt.savefig("energy" + str(Number_of_cells) + 'x' + str(Number_of_cells) + ".pdf", dpi=300)
