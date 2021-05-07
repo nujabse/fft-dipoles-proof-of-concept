@@ -35,16 +35,6 @@ bv = bv * 1.88973
 # Precision of printed output
 np.set_printoptions(precision=10)
 
-
-# Get the reciprocal lattice vector, see Kitchens "surfaces.pdf", P. 39
-# Also see the definition from "Introduction to solid state physics", P. 23
-def reciprocal(lattice_vector):
-    Astar = 2 * np.pi * np.linalg.inv(lattice_vector).T
-    return Astar
-
-
-# Set lattice vectors in real space and reciprocal space
-rec = reciprocal(bv)
 # Get the area of the unit cell using cross product
 A = np.linalg.norm(np.cross(bv[0], bv[1]))
 # print("Unit cell area A = {}".format(A))

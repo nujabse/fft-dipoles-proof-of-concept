@@ -17,6 +17,13 @@ def setUpLattice(bv, N, basis=[[0, 0, 0]]):
     return np.array(result)
 
 
+# Get the reciprocal lattice vector, see Kitchens "surfaces.pdf", P. 39
+# Also see the definition from "Introduction to solid state physics", P. 23
+def reciprocal(lattice_vector):
+    Astar = 2 * np.pi * np.linalg.inv(lattice_vector).T
+    return Astar
+
+
 # Try to expand the lattice according to periodical boundary conditions
 def setup_pbc(vectors, basis_atom, cell_dimension):
     result = []
@@ -46,23 +53,12 @@ def setup_pbc_multiple_basis(vectors, basis_atom, basis_atoms, cell_dimension):
                     if i == 0 and j == 0:
                         continue
                     else:
-                        base = np.dot(base, vectors)
                         super_cell_atom = base + vectors[0] * i + vectors[1] * j
                     result.append(super_cell_atom)
                 else:
-                    # print("Working on the second basis atom")
-                    base = np.dot(base, vectors)
                     super_cell_atom = base + vectors[0] * i + vectors[1] * j
                     result.append(super_cell_atom)
     return result
-    # for base in basis_atoms:
-    #     if np.array_equal(base, basis_atom):
-    #         result = setup_pbc(vectors, base, cell_dimension)
-    #     else:
-    #         print("Running second")
-    #         second_result = setup_pbc(vectors, base, cell_dimension)
-    #         result = result + second_result
-    # return result
 
 
 # Construct function to plot magnetic moments configurations
