@@ -28,10 +28,15 @@ bv = np.array([[6.718390000000000, 0.000000000000000, 0.000000000000000],
 basis = np.array([[0.333333999, 0.666666031, 0.499999970],
                   [0.666665971, 0.333333999, 0.499999970]])  # basis position for CrI3
 
-basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225520000009],
-                  [0.3333333333333357, 0.6666666666666643, 0.0960225520000009]]) # basis position for MnPS3
+# basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225520000009],
+#                   [0.3333333333333357, 0.6666666666666643, 0.0960225520000009]]) # basis position for MnPS3
 # Transform lattice units into Rydberg atomic units (a.u.)
 bv = bv * 1.88973
+# Set lattice vectors in real space and reciprocal space
+rec = util.reciprocal(bv)
+# Transform basis atom to cartesian coordinates
+basis_cart_real = np.dot(basis, bv)
+basis_cart_reciprocal = np.dot(basis, rec)
 # Precision of printed output
 np.set_printoptions(precision=10)
 
@@ -54,10 +59,10 @@ sqpi = math.sqrt(np.pi)
 # https://doi.org/10.1103/physrevb.51.9552
 def madlung_constant(dim):
     m_constant = 0.0
-    r_pos = util.setup_pbc_multiple_basis(bv, atom, basis, dim)
+    r_pos = util.setup_pbc_multiple_basis(bv, atom, basis_cart_real, dim)
     # util.plot_moment(r_pos, dim[0] - 1, basis, bv)
     # print("Reciprocal lattice vectors are :\n {}".format(rec))
-    g_pos = util.setup_pbc_multiple_basis(rec, atom, basis, dim)
+    g_pos = util.setup_pbc_multiple_basis(rec, atom_rec, basis_cart_reciprocal, dim)
     # Calculate only the sqrt of x and y of the position vector
     r_vector_lengths = [np.linalg.norm(i - atom) for i in r_pos]  # in a_0 unit
     g_vector_lengths = [np.linalg.norm(j - atom_rec) for j in g_pos]
@@ -121,8 +126,8 @@ def E_self(r):
 fig, axs = plt.subplots(2, 1, constrained_layout=True)
 fig.suptitle('Magnetic dipolar energy of CrI3 ' + str(moment_vector), fontsize=16)
 for i in range(len(basis)):
-    atom = basis[i]
-    atom_rec = np.dot(atom, rec)
+    atom = basis_cart_real[i]
+    atom_rec = basis_cart_reciprocal[i]
     print("Calculating atom: {}".format(atom))
     axs[i].set_xlabel('Supercell dimension')
     axs[i].set_ylabel('Dipolar energy (meV)')
