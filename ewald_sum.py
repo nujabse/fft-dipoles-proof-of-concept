@@ -46,11 +46,10 @@ A = np.linalg.norm(np.cross(bv[0], bv[1]))
 # Define some constant values
 sigma = 0.8  # need testing, here we choose sigma = 5/ L
 # magnetic_moment = 4.548  # Mn atom magnetization
-# magnetic_moment = 2.873  # Cr atom magnetization
-magnetic_moment = 4.548  # Cr atom magnetization
+magnetic_moment = 2.873  # Cr atom magnetization
 c = 274.072
-# moment_vector = np.array([0, 0, 1])
-moment_vector = np.array([1, 0, 0])
+moment_vector = np.array([0, 0, 1])
+# moment_vector = np.array([1, 0, 0])
 sqpi = math.sqrt(np.pi)
 
 
