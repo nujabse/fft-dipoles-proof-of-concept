@@ -53,34 +53,36 @@ def setup_pbc_multiple_basis(vectors, basis_atom, basis_atoms, cell_dimension):
                     if i == 0 and j == 0:
                         continue
                     else:
+                        base = np.dot(base, vectors)
                         super_cell_atom = base + vectors[0] * i + vectors[1] * j
                     result.append(super_cell_atom)
                 else:
+                    base = np.dot(base, vectors)
                     super_cell_atom = base + vectors[0] * i + vectors[1] * j
                     result.append(super_cell_atom)
     return result
 
 
 # Construct function to plot magnetic moments configurations
-def plot_moment(lattice, dimension, basis_atoms, vector):
+def plot_moment(lattice, dimension, basis_atom, color='bo', text=None):
     # Clear the figure, or it will stack onto the next
-    plt.clf()
+    # plt.clf()
     plt.grid()
     # First plot the super lattice
     for i in range(len(lattice)):
-        print("Neighbour: ", i, "Coord: ", lattice[i])
-        plt.plot(lattice[i][0], lattice[i][1], 'bo', markersize=5)
+        # print("Neighbour: ", i, "Coord: ", lattice[i])
+        plt.plot(lattice[i][0], lattice[i][1], color, markersize=5)
         # add text to each atom in the lattice
-        plt.text(lattice[i][0], lattice[i][1], str(i), fontsize=6)
+        plt.text(lattice[i][0], lattice[i][1], text, fontsize=6)
     # Second plot the basis atoms, in case overshadowed by blue dots
-    for basis_atom in basis_atoms:
-        basis_atom = np.dot(basis_atom, vector)
-        plt.plot(basis_atom[0], basis_atom[1], 'ro', markersize=5)
-    dimension = dimension + 1
+    # No need to convert basis atom again, as it is already done
+    plt.plot(basis_atom[0], basis_atom[1], color, markersize=2)
+    plt.text(basis_atom[0], basis_atom[1], text, fontsize=8)
+    # dimension = dimension + 1
     # fig.tight_layout()
     # make plot to have equal axis length
     plt.gca().set_aspect('equal', adjustable='box')
-    plt.savefig(str(dimension) + "x" + str(dimension) + ".pdf", dpi=300)
+    # plt.savefig(str(dimension) + "x" + str(dimension) + ".pdf", dpi=300)
 
 
 # builds spins on the lattice (length normalized to 1)
