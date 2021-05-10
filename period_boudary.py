@@ -6,7 +6,8 @@ from functools import partial
 import csv
 
 # Definition of bravais vectors and basis atoms
-system = "MnPS3-Sz "
+# system = "MnPS3-Sz "
+system = "MnPS3-Sx "
 # MnBi2Te4 bravais vectors
 # bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
 #                [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
@@ -30,7 +31,7 @@ basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225520000009],
 # basis = np.array([[2.166922, 1.251048, 15.336891]]) # basis position for MnBi2Te4 (in cartesian coordinates)
 
 # Precision of printed output
-np.set_printoptions(precision=8)
+np.set_printoptions(precision=10)
 # As numpy.dot has problems with multiprocessing, we are here directly convert fractional coordinates (once and all)
 basis = np.dot(basis, bv)
 
@@ -46,9 +47,10 @@ def calc_supercell_dipolar_energy(basis_atom, center_atom, dimension, atom_momen
     # add center atom to lattice in case there are two atoms in unit cell
     if not np.array_equal(basis_atom, center_atom):
         pos.append(center_atom)
-        print("Center atom is not the basis atom")
+        # print("Center atom is not the basis atom")
     else:
-        print("Center atom is the basis atom")
+        pass
+        # print("Center atom is the basis atom")
     # pos = util.setup_pbc_multiple_basis(bv, basis[0], basis, N)
     spins = util.buildSpins(pos, lattice_moment)
     # build spins for neighbouring atoms
@@ -95,18 +97,26 @@ results = []
 
 def main():
     # Split tasks to subtasks
-    calc_dip_z_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
-                                  atom_moment="PlusZ", lattice_moment="PlusZ")
-    calc_dip_z_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
-                              atom_moment="PlusZ", lattice_moment="-PlusZ")
+    # calc_dip_z_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
+    #                               atom_moment="PlusZ", lattice_moment="PlusZ")
+    # calc_dip_z_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
+    #                           atom_moment="PlusZ", lattice_moment="-PlusZ")
+    calc_dip_x_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
+                                  atom_moment="PlusX", lattice_moment="PlusX")
+    calc_dip_x_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
+                              atom_moment="PlusX", lattice_moment="-PlusX")
     executor = concurrent.futures.ProcessPoolExecutor()
-    for result_plus in executor.map(calc_dip_z_parallel, supercells):
+    # for result_plus in executor.map(calc_dip_z_parallel, supercells):
+    #     results_plus.append(result_plus)
+    # for result_minus in executor.map(calc_dip_z_anti, supercells):
+    #     results_minus.append(result_minus)
+    for result_plus in executor.map(calc_dip_x_parallel, supercells):
         results_plus.append(result_plus)
-    for result_minus in executor.map(calc_dip_z_anti, supercells):
+    for result_minus in executor.map(calc_dip_x_anti, supercells):
         results_minus.append(result_minus)
     # Add the two results together
-    for i in range(len(results_plus)):
-        out = {"Loop": i, "Energy": results_plus[i]["Energy"] + results_minus[i]["Energy"]}
+    for _ in range(0, Number_of_cells - 2):
+        out = {"Loop": _, "Energy": results_plus[_]["Energy"] + results_minus[_]["Energy"]}
         results.append(out)
 
 
@@ -129,13 +139,16 @@ if __name__ == '__main__':
     with open(system + str(Number_of_cells) + 'x' + str(Number_of_cells) + '-energy.csv', 'w', newline='') \
             as file_handler:
         csv_writer = csv.writer(file_handler, delimiter=' ')
-        for i in range(len(results)):
-            csv_writer.writerow([results[i]["Loop"], results[i]["Energy"], diff[i]])
+        for _ in range(len(results)):
+            csv_writer.writerow([results[_]["Loop"], results[_]["Energy"], diff[_]])
 
     # plot the energy convergence plot
-    plt.clf()
-    for i in range(len(results)):
-        plt.plot(results[i]["Loop"], results[i]["Energy"], 'bo', markersize=3)
+    # plt.clf()
+    # Use list comprehension to avoid variable leaking
+    plt.plot([x for x in range(2, Number_of_cells)], [e["Energy"] for e in results], 'bo', markersize=3)
+    # need to manually set y limit in plotting Sx
+    ax = plt.gca()
+    ax.set_ylim(0.015, 0.0151)
     plt.xlabel("Number of supercells")
     plt.ylabel("Dipolar Energy (meV)")
     plt.tight_layout()  # Need this, or plot will run out of figure
@@ -144,8 +157,7 @@ if __name__ == '__main__':
     # plot the energy difference plot
     plt.clf()
     # plt.yscale("log")
-    for j in range(len(results)):
-        plt.semilogy(j, abs(diff[j]), 'ro', markersize=3)
+    plt.semilogy([x for x in range(2, Number_of_cells)], [d for d in diff], 'ro', markersize=3)
     plt.xlabel("Number of supercells")
     plt.ylabel("Energy difference")
     plt.tight_layout()  # make plot tighter
