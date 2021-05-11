@@ -36,7 +36,9 @@ bv = bv * 1.88973
 rec = util.reciprocal(bv)
 # Transform basis atom to cartesian coordinates
 basis_cart_real = np.dot(basis, bv)
-basis_cart_reciprocal = np.dot(basis, rec)
+basis_cart_reciprocal = basis_cart_real
+# basis_cart_reciprocal = np.dot(basis, rec)
+basis_frac_rec = basis @ bv @ np.linalg.inv(rec)
 # Precision of printed output
 np.set_printoptions(precision=10)
 
@@ -47,7 +49,10 @@ A = np.linalg.norm(np.cross(bv[0], bv[1]))
 sigma = 0.8  # need testing, here we choose sigma = 5/ L
 # magnetic_moment = 4.548  # Mn atom magnetization
 magnetic_moment = 2.873  # Cr atom magnetization
+mu_0 = 1.2566370614e-6
 c = 274.072
+# define a conversion matrix in spherical coordinates
+mat = np.array([[-1 / 2, 0, 0], [0, -1 / 2, 0], [0, 0, 1]])
 moment_vector = np.array([0, 0, 1])
 # moment_vector = np.array([1, 0, 0])
 sqpi = math.sqrt(np.pi)
@@ -56,15 +61,31 @@ sqpi = math.sqrt(np.pi)
 # Ewald sum to get the Madelung constants, notice that the constant is in  1/m^3 unit
 # mainly uses the formula described in
 # https://doi.org/10.1103/physrevb.51.9552
-def madlung_constant(dim):
+def madlung_constant(dim, basis_atom, center_atom, basis_atom_rec, center_atom_rec, color='bo', text=None):
     m_constant = 0.0
-    r_pos = util.setup_pbc_multiple_basis(bv, atom, basis_cart_real, dim)
-    # util.plot_moment(r_pos, dim[0] - 1, basis, bv)
+    r_pos = util.setup_pbc(bv, center_atom, dim)
+    # add center atom to lattice in case there are two atoms in unit cell
+    if not np.array_equal(basis_atom, center_atom):
+        r_pos.append(center_atom)
+        # print("Center atom is not the basis atom")
+    else:
+        pass
+        # print("Center atom is the basis atom")
+    # util.plot_moment(r_pos, dim[0] - 1, center_atom, color=color, text=text)
     # print("Reciprocal lattice vectors are :\n {}".format(rec))
-    g_pos = util.setup_pbc_multiple_basis(rec, atom_rec, basis_cart_reciprocal, dim)
+    g_pos = util.setup_pbc(rec, center_atom_rec, dim)
+    # g_pos = [v @ bv @ np.linalg.inv(rec) for v in r_pos]
+    if not np.array_equal(basis_atom_rec, center_atom_rec):
+        g_pos.append(center_atom_rec)
+        print("Center Reciprocal atom is not the basis atom")
+    else:
+        pass
+        print("Center atom is the basis atom")
+    # util.plot_moment(r_pos, dim[0] - 1, center_atom, color=color, text=text)
+    util.plot_moment(g_pos, dim[0] - 1, center_atom_rec, color=color, text=text)
     # Calculate only the sqrt of x and y of the position vector
-    r_vector_lengths = [np.linalg.norm(i - atom) for i in r_pos]  # in a_0 unit
-    g_vector_lengths = [np.linalg.norm(j - atom_rec) for j in g_pos]
+    r_vector_lengths = [np.linalg.norm(i - basis_atom) for i in r_pos]  # in a_0 unit
+    g_vector_lengths = [np.linalg.norm(j - basis_atom_rec) for j in g_pos]
     for r in r_vector_lengths:
         if r != 0:
             sum_1 = (erfc(r / (2 * sigma))) / (r ** 3)
@@ -82,14 +103,12 @@ def madlung_constant(dim):
 
 
 def dipoler_energy(loop, mom_v, madlung):
-    # define a conversion matrix in spherical coordinates
-    mat = np.array([[-1 / 2, 0, 0], [0, -1 / 2, 0], [0, 0, 1]])
     # First consider relations between magnetic moment orientation and madelung constant
     madlung = madlung * np.linalg.multi_dot([mom_v, mat, mom_v])
     energy = magnetic_moment ** 2 / (c ** 2) * madlung
     # convert to meV unit
     energy = 13.6 * energy * 1000
-    print("{} \t Madlung = {}\t E_dd = {}".format(loop, madlung, energy))
+    # print("{} \t Madlung = {}\t E_dd = {}".format(loop, madlung, energy))
     return energy
 
 
@@ -107,8 +126,8 @@ def C(r):
 
 
 # Calculate the real part of the dipolar energy
-def E_r(r):
-    pass
+def E_r(r, m_i, m_j):
+    out = (1 / 2) * mu_0 / (4 * np.pi)
 
 
 # Calculate the long range reciprocal part of the dipolar energy
@@ -121,22 +140,39 @@ def E_self(r):
     pass
 
 
-#  start calculation
-fig, axs = plt.subplots(2, 1, constrained_layout=True)
-fig.suptitle('Magnetic dipolar energy of CrI3 ' + str(moment_vector), fontsize=16)
-for i in range(len(basis)):
-    atom = basis_cart_real[i]
-    atom_rec = basis_cart_reciprocal[i]
-    print("Calculating atom: {}".format(atom))
-    axs[i].set_xlabel('Supercell dimension')
-    axs[i].set_ylabel('Dipolar energy (meV)')
-    axs[i].set_title('Atom ' + str(i))
-    for n in range(2, 60):
-        dimension = [n, n, 1]
-        M, r_lengths, g_lengths = madlung_constant(dimension)
-        E_dd = dipoler_energy(n, moment_vector, M)
-        axs[i].plot(n, E_dd, 'ob')
-    print("Now plotting for atom {}".format(str(i)))
+# TODO: The currect implementation is false in  calculating CrI3 dipolar energy
+super_cells = 6
+for n in range(2, super_cells):
+    dimension = [n, n, 1]
+    M, r_lengths, g_lengths = madlung_constant(dimension, basis_cart_real[0], basis_cart_real[0],
+                                               basis_cart_reciprocal[0], basis_cart_reciprocal[0], text='1')
+    E_dd_plus = dipoler_energy(n, moment_vector, M)
+
+    M, r_lengths, g_lengths = madlung_constant(dimension, basis_cart_real[0], basis_cart_real[1],
+                                               basis_cart_reciprocal[0], basis_cart_reciprocal[1], color='ro', text='2')
+    E_dd_minus = dipoler_energy(n, moment_vector, M)
+
+    E_tot = E_dd_minus + E_dd_plus
+    print("{}\tPlus Energy = {}\t Minus Energy = {} \t Total = {}".format(n, E_dd_plus, E_dd_minus, E_tot))
 
 # plt.show()
-plt.savefig(str(moment_vector) + " CrI3 " + str(dimension[0]) + "x" + str(dimension[1]) + ".pdf", dpi=300)
+
+#  start calculation
+# fig, axs = plt.subplots(2, 1, constrained_layout=True)
+# fig.suptitle('Magnetic dipolar energy of CrI3 ' + str(moment_vector), fontsize=16)
+# for i in range(len(basis)):
+#     atom = basis_cart_real[i]
+#     atom_rec = basis_cart_reciprocal[i]
+#     print("Calculating atom: {}".format(atom))
+#     axs[i].set_xlabel('Supercell dimension')
+#     axs[i].set_ylabel('Dipolar energy (meV)')
+#     axs[i].set_title('Atom ' + str(i))
+#     for n in range(2, 60):
+#         dimension = [n, n, 1]
+#         M, r_lengths, g_lengths = madlung_constant(dimension)
+#         E_dd = dipoler_energy(n, moment_vector, M)
+#         axs[i].plot(n, E_dd, 'ob')
+#     print("Now plotting for atom {}".format(str(i)))
+
+plt.show()
+# plt.savefig(str(moment_vector) + " CrI3 " + str(dimension[0]) + "x" + str(dimension[1]) + ".pdf", dpi=300)
