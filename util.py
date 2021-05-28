@@ -113,19 +113,19 @@ def buildSpins(lattice, config="Random"):
     elif config == "PlusZ":
         x = np.zeros(len(lattice))
         y = np.zeros(len(lattice))
-        z = np.ones(len(lattice)) * 4.548
+        z = np.ones(len(lattice)) * 5.0
     elif config == "-PlusZ":
         x = np.zeros(len(lattice))
         y = np.zeros(len(lattice))
-        z = np.ones(len(lattice)) * - 4.548
+        z = np.ones(len(lattice)) * -5.0
         # z = np.ones(len(lattice)) * 2.873
     elif config == "PlusX":
-        x = np.ones(len(lattice)) * 4.548
+        x = np.ones(len(lattice)) * 5.0
         # x = np.ones(len(lattice)) * 2.873
         y = np.zeros(len(lattice))
         z = np.zeros(len(lattice))
     elif config == "-PlusX":
-        x = np.ones(len(lattice)) * - 4.548
+        x = np.ones(len(lattice)) * -5.0
         # x = np.ones(len(lattice)) * 2.873
         y = np.zeros(len(lattice))
         z = np.zeros(len(lattice))
