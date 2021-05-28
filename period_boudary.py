@@ -4,7 +4,28 @@ import util
 import matplotlib.pyplot as plt
 from functools import partial
 import csv
+from pymatgen.io.vasp import Poscar
+import pymatgen.core as mg
 
+
+# get bravis lattice vector from PoSCAR
+poscar = Poscar.from_file("1u.c-POSCAR")
+structure = poscar.structure
+bv = structure.lattice.matrix
+print(bv)
+
+# TODO: Set magnetic atoms from user input
+# get only the Mn atoms
+direct_struct = mg.Structure.from_file("1u.c-POSCAR")
+print(direct_struct.lattice.matrix)
+Mn_coords = [a.coords for a in direct_struct if a.specie.symbol == 'Mn']
+Mn_direct = [a.frac_coords for a in direct_struct if a.specie.symbol == 'Mn']
+print(Mn_coords)
+# Notice that it will return the cartesian coordinates of the atoms
+basis_cartesian = np.asarray(Mn_coords)
+basis_frac = np.asarray(Mn_direct)
+print(basis_cartesian)
+print(basis_frac)
 # Definition of bravais vectors and basis atoms
 # system = "MnPS3-Sz "
 # system = "MnPS3-Sx "
@@ -42,6 +63,7 @@ np.set_printoptions(precision=10)
 # As numpy.dot has problems with multiprocessing, we are here directly convert fractional coordinates (once and all)
 basis = np.dot(basis, bv)
 
+# TODO: use user input or external file as lattice and basis parameter
 
 # Loop over many supercells with different sizes
 def calc_supercell_dipolar_energy(basis_atom, center_atom, dimension, atom_moment="PlusZ", lattice_moment="PlusZ"):
