@@ -7,7 +7,8 @@ import csv
 
 # Definition of bravais vectors and basis atoms
 # system = "MnPS3-Sz "
-system = "MnPS3-Sx "
+# system = "MnPS3-Sx "
+system = "MnPSe3-Sz "
 # MnBi2Te4 bravais vectors
 # bv = np.array([[4.3337998390000001, 0.0000000000000000, 0.0000000000000000],
 #                [-2.1668999195000000, 3.7531807554999999, 0.0000000000000000],
@@ -21,15 +22,21 @@ system = "MnPS3-Sx "
 bv = np.array([[6.0700000000000003, 0.0000000000000000, 0.0000000000000000],
                [-3.0350000000000001, 5.2567742009715426, 0.0000000000000000],
                [-0.0000000000000001, 0.0000000000000001, 28.0000000000000000]])
+
+# MnPSe3 crystal structure
+bv = np.array([[6.3870000839000003, 0.0000000000000000, 0.0000000000000000],
+               [-3.1935000420000001, 5.5313043266999999, 0.0000000000000000],
+               [0.0000000000000000, 0.0000000000000000, 28.0000000000000000]])
 # basis vectors
 # basis = np.array([[0.66667, 0.33333, 0.49617895]])  # basis position for MnBi2Te4 (in fractional coordinates)
 # basis = np.array([[0.333333999, 0.666666031, 0.499999970],
 #                   [0.666665971, 0.333333999, 0.499999970]])  # basis position for CrI3
 
-basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225520000009],
-                  [0.3333333333333357, 0.6666666666666643, 0.0960225520000009]])  # basis position for MnPS3
+# basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225520000009],
+#                   [0.3333333333333357, 0.6666666666666643, 0.0960225520000009]])  # basis position for MnPS3
 # basis = np.array([[2.166922, 1.251048, 15.336891]]) # basis position for MnBi2Te4 (in cartesian coordinates)
-
+basis = np.array([[0.0000000000000000, 0.0000000000000000, 0.0960225549999976],
+                  [0.3333333349999990, 0.6666666710000015, 0.0960225549999976]])  # basis position for MnPSe3 (direct)
 # Precision of printed output
 np.set_printoptions(precision=10)
 # As numpy.dot has problems with multiprocessing, we are here directly convert fractional coordinates (once and all)
@@ -97,23 +104,23 @@ results = []
 
 def main():
     # Split tasks to subtasks
-    # calc_dip_z_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
-    #                               atom_moment="PlusZ", lattice_moment="PlusZ")
-    # calc_dip_z_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
-    #                           atom_moment="PlusZ", lattice_moment="-PlusZ")
-    calc_dip_x_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
-                                  atom_moment="PlusX", lattice_moment="PlusX")
-    calc_dip_x_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
-                              atom_moment="PlusX", lattice_moment="-PlusX")
+    calc_dip_z_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
+                                  atom_moment="PlusZ", lattice_moment="PlusZ")
+    calc_dip_z_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
+                              atom_moment="PlusZ", lattice_moment="-PlusZ")
+    # calc_dip_x_parallel = partial(calc_supercell_dipolar_energy, basis[0], basis[0],
+    #                               atom_moment="PlusX", lattice_moment="PlusX")
+    # calc_dip_x_anti = partial(calc_supercell_dipolar_energy, basis[0], basis[1],
+    #                           atom_moment="PlusX", lattice_moment="-PlusX")
     executor = concurrent.futures.ProcessPoolExecutor()
-    # for result_plus in executor.map(calc_dip_z_parallel, supercells):
-    #     results_plus.append(result_plus)
-    # for result_minus in executor.map(calc_dip_z_anti, supercells):
-    #     results_minus.append(result_minus)
-    for result_plus in executor.map(calc_dip_x_parallel, supercells):
+    for result_plus in executor.map(calc_dip_z_parallel, supercells):
         results_plus.append(result_plus)
-    for result_minus in executor.map(calc_dip_x_anti, supercells):
+    for result_minus in executor.map(calc_dip_z_anti, supercells):
         results_minus.append(result_minus)
+    # for result_plus in executor.map(calc_dip_x_parallel, supercells):
+    #     results_plus.append(result_plus)
+    # for result_minus in executor.map(calc_dip_x_anti, supercells):
+    #     results_minus.append(result_minus)
     # Add the two results together
     for _ in range(0, Number_of_cells - 2):
         out = {"Loop": _, "Energy": results_plus[_]["Energy"] + results_minus[_]["Energy"]}
