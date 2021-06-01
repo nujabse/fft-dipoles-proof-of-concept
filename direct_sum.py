@@ -17,21 +17,19 @@ Rewrite periodical direct sum with classes
 # get only the Mn atoms
 direct_struct = mg.Structure.from_file("3u.c-POSCAR")
 bv = direct_struct.lattice.matrix
-print(bv)
+# print(bv)
 Mn_coords = [a.coords for a in direct_struct if a.specie.symbol == 'Mn']
 Mn_direct = [a.frac_coords for a in direct_struct if a.specie.symbol == 'Mn']
 # Notice that it will return the cartesian coordinates of the atoms
 basis_cartesian = np.asarray(Mn_coords)
 basis_frac = np.asarray(Mn_direct)
-# Here we are still using the old direct basis
-basis = basis_frac
+# Here we are using the cartesian basis
+basis = basis_cartesian
 # Definition of bravais vectors and basis atoms
-system = "Mn-Pt-2-Sz"
+system = "Mn-Pt-1-Sz"
 
 # Precision of printed output
 np.set_printoptions(precision=10)
-# As numpy.dot has problems with multiprocessing, we are here directly convert fractional coordinates (once and all)
-basis = np.dot(basis, bv)
 
 
 class Atom:
@@ -40,12 +38,12 @@ class Atom:
     """
 
     def __init__(self, position: np.ndarray, spin: np.ndarray):
-        # fractional coordinates
+        # cartesian coordinates
         self.position = position
         self.spin = spin
 
     def __repr__(self) -> str:
-        return 'Fractional coord({0.position}), spin({0.spin})'.format(self)
+        return 'Cartesian coord({0.position}), spin({0.spin})'.format(self)
 
     def __eq__(self, other):
         if isinstance(other, Atom):
@@ -132,12 +130,63 @@ class SuperCell:
 
 
 def dipolar_energy(center: Atom, lattice: list) -> float:
-    e_dip = 0.0
+    energy = 0.0
     for i, a in enumerate(lattice):
         matrix = util.dipoleMatrix(a.position - center.position)
-        e_dip += -0.5 * np.matmul(center.spin, np.matmul(matrix, a.spin))
-    return e_dip
+        energy += -0.5 * np.matmul(center.spin, np.matmul(matrix, a.spin))
+    # covert energy to meV unit
+    energy = energy * 9.274009994e-24 / 2.1798723611035e-18 * 1e3 * 13.6
+    return energy
 
 
-sc = SuperCell(basis, bv, np.array([0, 0, 5]), [2, 2, 1], layers=3)
-sc.plot_atoms()
+supercell_limit = 200
+supercells = [[n, n, 1] for n in range(2, supercell_limit)]
+e_dip_sz = []
+e_dip_sx = []
+s_z = np.array([0, 0, 5])
+s_x = np.array([5, 0, 0])
+
+
+# Auxiliary function for multiprocessing (one parameter only)
+def dipolar_energy_supercell(spin: np.ndarray, dimension: list, cell_layers=3) -> float:
+    super_cell = SuperCell(basis, bv, spin, dimension, layers=cell_layers)
+    energy = dipolar_energy(super_cell.basis_atoms[0], super_cell.atoms)
+    print(super_cell.basis_atoms[0])
+    print('Supercell: {} \t E_dip: {}'.format(dimension, energy))
+    return energy
+
+
+dipolar_energy_sz = partial(dipolar_energy_supercell, s_z)
+dipolar_energy_sx = partial(dipolar_energy_supercell, s_x)
+
+
+def main():
+    executor = concurrent.futures.ProcessPoolExecutor()
+    for e_sz in executor.map(dipolar_energy_sz, supercells):
+        e_dip_sz.append(e_sz)
+    for e_sx in executor.map(dipolar_energy_sx, supercells):
+        e_dip_sx.append(e_sx)
+
+
+def data_writer(datalist: list) -> None:
+    with open(system + str(supercell_limit) + 'x' + str(supercell_limit) + '-energy.csv', 'w',
+              newline='') as file_handler:
+        csv_writer = csv.writer(file_handler, dilimiter='  ')
+        for index, data in enumerate(datalist):
+            csv_writer.writerow([index, data])
+
+
+if __name__ == '__main__':
+    main()
+    # Plot results
+    plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
+    plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
+    plt.show()
+    print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
+    print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
+
+# sc = SuperCell(basis, bv, np.array([0, 0, 5]), [100, 100, 1], layers=1)
+# # sc.plot_atoms()
+# e_dip = dipolar_energy(sc.basis_atoms[0], sc.atoms)
+# print(len(sc.basis_atoms))
+# print(e_dip)
