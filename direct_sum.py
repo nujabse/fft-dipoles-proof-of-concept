@@ -15,7 +15,7 @@ Rewrite periodical direct sum with classes
 # TODO: Set magnetic atoms from user input
 # get bravis lattice vector from PoSCAR
 # get only the Mn atoms
-direct_struct = mg.Structure.from_file("3u.c-POSCAR")
+direct_struct = mg.Structure.from_file("Pt-interface/P-Up/2u.c-POSCAR")
 bv = direct_struct.lattice.matrix
 # print(bv)
 Mn_coords = [a.coords for a in direct_struct if a.specie.symbol == 'Mn']
@@ -26,7 +26,7 @@ basis_frac = np.asarray(Mn_direct)
 # Here we are using the cartesian basis
 basis = basis_cartesian
 # Definition of bravais vectors and basis atoms
-system = "Mn-Pt-1-Sz"
+system = "Mn-Pt-2-"
 
 # Precision of printed output
 np.set_printoptions(precision=10)
@@ -108,22 +108,32 @@ class SuperCell:
         atoms = supercell(self.basis_atoms, self.dimension, self.vectors)
         return atoms
 
-    def plot_atoms(self) -> None:
+    def plot_atoms(self, basis_only=False) -> None:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        for a in self.atoms:
-            for b in self.basis_atoms:
-                if a == b:
-                    print(a, b)
-                    if np.array_equal(a.spin, np.array([0, 0, 5])):
-                        ax.scatter(a.position[0], a.position[1], a.position[2], s=35, marker='D', c='r')
-                    else:
-                        ax.scatter(a.position[0], a.position[1], a.position[2], s=35, marker='D', c='b')
-                elif np.array_equal(a.spin, np.array([0, 0, 5])):
-                    ax.scatter(a.position[0], a.position[1], a.position[2], c='r')
-                elif np.array_equal(a.spin, np.array([0, 0, -5])):
-                    ax.scatter(a.position[0], a.position[1], a.position[2], c='b')
-        plt.show()
+        if basis_only:
+            for index, i in enumerate(self.basis_atoms, start=1):
+                if np.array_equal(i.spin, s_z):
+                    ax.scatter(i.position[0], i.position[1], i.position[2], s=35, marker='D', c='r')
+                else:
+                    ax.scatter(i.position[0], i.position[1], i.position[2], s=35, marker='D', c='b')
+                ax.text(i.position[0], i.position[1], i.position[2], str(index))
+            plt.tight_layout()
+            plt.savefig('Output/Pt-interface/P-up/' + str(self.layers) + '-layers' + '.png', transparent=True, dpi=300)
+        else:
+            for a in self.atoms:
+                for b in self.basis_atoms:
+                    if a == b:
+                        print(a, b)
+                        if np.array_equal(a.spin, np.array([0, 0, 5])):
+                            ax.scatter(a.position[0], a.position[1], a.position[2], s=35, marker='D', c='r')
+                        else:
+                            ax.scatter(a.position[0], a.position[1], a.position[2], s=35, marker='D', c='b')
+                    elif np.array_equal(a.spin, np.array([0, 0, 5])):
+                        ax.scatter(a.position[0], a.position[1], a.position[2], c='r')
+                    elif np.array_equal(a.spin, np.array([0, 0, -5])):
+                        ax.scatter(a.position[0], a.position[1], a.position[2], c='b')
+            plt.show()
 
     def __repr__(self) -> str:
         return 'Basis: {0.basis} \n Bravais vectors: {0.vectors}'.format(self)
@@ -140,6 +150,7 @@ def dipolar_energy(center: Atom, lattice: list) -> float:
 
 
 supercell_limit = 200
+# Here we are starting from calculating supercell 2x2x1
 supercells = [[n, n, 1] for n in range(2, supercell_limit)]
 e_dip_sz = []
 e_dip_sx = []
@@ -148,10 +159,11 @@ s_x = np.array([5, 0, 0])
 
 
 # Auxiliary function for multiprocessing (one parameter only)
-def dipolar_energy_supercell(spin: np.ndarray, dimension: list, cell_layers=3) -> float:
+def dipolar_energy_supercell(spin: np.ndarray, dimension: list, cell_layers=2) -> float:
     super_cell = SuperCell(basis, bv, spin, dimension, layers=cell_layers)
-    energy = dipolar_energy(super_cell.basis_atoms[0], super_cell.atoms)
-    print(super_cell.basis_atoms[0])
+    # Notice that you need to change center atom as the layers become thicker
+    energy = dipolar_energy(super_cell.basis_atoms[2], super_cell.atoms)
+    # print(super_cell.basis_atoms[0])
     print('Supercell: {} \t E_dip: {}'.format(dimension, energy))
     return energy
 
@@ -160,6 +172,8 @@ dipolar_energy_sz = partial(dipolar_energy_supercell, s_z)
 dipolar_energy_sx = partial(dipolar_energy_supercell, s_x)
 
 
+# TODO: Use multithreading to control calculating multiple systems while using multiprocessing to speed up running on
+# one task
 def main():
     executor = concurrent.futures.ProcessPoolExecutor()
     for e_sz in executor.map(dipolar_energy_sz, supercells):
@@ -168,12 +182,26 @@ def main():
         e_dip_sx.append(e_sx)
 
 
-def data_writer(datalist: list) -> None:
-    with open(system + str(supercell_limit) + 'x' + str(supercell_limit) + '-energy.csv', 'w',
+def delta(datalist: list) -> list:
+    """
+    Helper function to calculate difference of energy after each step
+    """
+    diff = []
+    for index, data in enumerate(datalist, start=2):
+        if index == 2:
+            e_diff = data
+        else:
+            e_diff = data - datalist[index - 3]
+        diff.append(e_diff)
+    return diff
+
+
+def data_writer(data_list: list, diff_list: list, name: str) -> None:
+    with open('Output/Pt-interface/P-up/' + name + system + str(supercell_limit) + 'x' + str(supercell_limit) + '-energy.csv', 'w',
               newline='') as file_handler:
-        csv_writer = csv.writer(file_handler, dilimiter='  ')
-        for index, data in enumerate(datalist):
-            csv_writer.writerow([index, data])
+        csv_writer = csv.writer(file_handler, delimiter=' ')
+        for index, (data, difference) in enumerate(zip(data_list, diff_list), start=2):
+            csv_writer.writerow([index, data, difference])
 
 
 if __name__ == '__main__':
@@ -184,9 +212,14 @@ if __name__ == '__main__':
     plt.show()
     print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
     print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
+    delta_sx = delta(e_dip_sx)
+    delta_sz = delta(e_dip_sz)
+    data_writer(e_dip_sx, delta_sx, 'Sx')
+    data_writer(e_dip_sz, delta_sz, 'Sz')
 
-# sc = SuperCell(basis, bv, np.array([0, 0, 5]), [100, 100, 1], layers=1)
-# # sc.plot_atoms()
-# e_dip = dipolar_energy(sc.basis_atoms[0], sc.atoms)
+
+# sc = SuperCell(basis, bv, np.array([0, 0, 5]), [2, 2, 1], layers=6)
+# sc.plot_atoms(basis_only=True)
+# e_dip = dipolar_energy(sc.basis_atoms[2], sc.atoms)
 # print(len(sc.basis_atoms))
 # print(e_dip)
