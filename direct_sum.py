@@ -2,22 +2,32 @@ import numpy as np
 import concurrent.futures
 import util
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from functools import partial
 import csv
 import pymatgen.core as mg
+import argparse
 
 """
 Rewrite periodical direct sum with classes
 """
 
-# Get structure information from POSCAR
-# TODO: Set magnetic atoms from user input
-# get bravis lattice vector from PoSCAR
+parser = argparse.ArgumentParser()
+parser.add_argument('-f', required=True, dest='poscar', help='Specify the name of the POSCAR file', type=str)
+parser.add_argument('-c', required=True, dest='center', help='Specify the center atom index (start from 0)', type=int)
+parser.add_argument('-l', required=True, dest='layers', help='Input how many layers are the system', type=int)
+parser.add_argument('-s', required=True, dest='system', help='Specify the out put file name', type=str)
+parser.add_argument('-m', default=5, dest='magmom', help="Input the strength of the magnetic moment", type=int)
+args = parser.parse_args()
+
+poscar = args.poscar
+center = args.center
+layers = args.layers
+system = args.system
+magmom = args.magmom
+
 # get only the Mn atoms
-direct_struct = mg.Structure.from_file("Pt-interface/P-Up/2u.c-POSCAR")
+direct_struct = mg.Structure.from_file(poscar)
 bv = direct_struct.lattice.matrix
-# print(bv)
 Mn_coords = [a.coords for a in direct_struct if a.specie.symbol == 'Mn']
 Mn_direct = [a.frac_coords for a in direct_struct if a.specie.symbol == 'Mn']
 # Notice that it will return the cartesian coordinates of the atoms
@@ -25,8 +35,6 @@ basis_cartesian = np.asarray(Mn_coords)
 basis_frac = np.asarray(Mn_direct)
 # Here we are using the cartesian basis
 basis = basis_cartesian
-# Definition of bravais vectors and basis atoms
-system = "Mn-Pt-2-"
 
 # Precision of printed output
 np.set_printoptions(precision=10)
@@ -159,10 +167,10 @@ s_x = np.array([5, 0, 0])
 
 
 # Auxiliary function for multiprocessing (one parameter only)
-def dipolar_energy_supercell(spin: np.ndarray, dimension: list, cell_layers=2) -> float:
-    super_cell = SuperCell(basis, bv, spin, dimension, layers=cell_layers)
+def dipolar_energy_supercell(spin: np.ndarray, dimension: list) -> float:
+    super_cell = SuperCell(basis, bv, spin, dimension, layers=layers)
     # Notice that you need to change center atom as the layers become thicker
-    energy = dipolar_energy(super_cell.basis_atoms[2], super_cell.atoms)
+    energy = dipolar_energy(super_cell.basis_atoms[center], super_cell.atoms)
     # print(super_cell.basis_atoms[0])
     print('Supercell: {} \t E_dip: {}'.format(dimension, energy))
     return energy
@@ -197,7 +205,8 @@ def delta(datalist: list) -> list:
 
 
 def data_writer(data_list: list, diff_list: list, name: str) -> None:
-    with open('Output/Pt-interface/P-up/' + name + system + str(supercell_limit) + 'x' + str(supercell_limit) + '-energy.csv', 'w',
+    with open('Output/Pt-interface/P-up/' + name + '-' + system + '-' + str(center) + '-' + str(supercell_limit) + 'x' + str(
+            supercell_limit) + '-energy.csv', 'w',
               newline='') as file_handler:
         csv_writer = csv.writer(file_handler, delimiter=' ')
         for index, (data, difference) in enumerate(zip(data_list, diff_list), start=2):
@@ -206,17 +215,17 @@ def data_writer(data_list: list, diff_list: list, name: str) -> None:
 
 if __name__ == '__main__':
     main()
-    # Plot results
-    plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
-    plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
-    plt.show()
+    print(system, layers)
     print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
     print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
     delta_sx = delta(e_dip_sx)
     delta_sz = delta(e_dip_sz)
     data_writer(e_dip_sx, delta_sx, 'Sx')
     data_writer(e_dip_sz, delta_sz, 'Sz')
-
+    # Plot results
+    plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
+    plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
+    plt.show()
 
 # sc = SuperCell(basis, bv, np.array([0, 0, 5]), [2, 2, 1], layers=6)
 # sc.plot_atoms(basis_only=True)
