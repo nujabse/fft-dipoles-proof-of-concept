@@ -1,12 +1,15 @@
-import numpy as np
 import concurrent.futures
-import util
-import matplotlib.pyplot as plt
 from functools import partial
 import csv
-import pymatgen.core as mg
 import argparse
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pymatgen.core as mg
+from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
+
+import util
 """
 Rewrite periodical direct sum with classes
 """
@@ -15,7 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-f', required=True, dest='poscar', help='Specify the name of the POSCAR file', type=str)
 parser.add_argument('-c', required=True, dest='center', help='Specify the center atom index (start from 0)', type=int)
 parser.add_argument('-l', required=True, dest='layers', help='Input how many layers are the system', type=int)
-parser.add_argument('-s', required=True, dest='system', help='Specify the out put file name', type=str)
+parser.add_argument('-s', required=True, dest='system', help='Specify the caculation system name', type=str)
+parser.add_argument('-d', required=True, dest='output', help='Input the output file directory', type=str)
 parser.add_argument('-m', default=5, dest='magmom', help="Input the strength of the magnetic moment", type=int)
 args = parser.parse_args()
 
@@ -23,6 +27,7 @@ poscar = args.poscar
 center = args.center
 layers = args.layers
 system = args.system
+output_directory = args.output
 magmom = args.magmom
 
 # get only the Mn atoms
@@ -127,7 +132,7 @@ class SuperCell:
                     ax.scatter(i.position[0], i.position[1], i.position[2], s=35, marker='D', c='b')
                 ax.text(i.position[0], i.position[1], i.position[2], str(index))
             plt.tight_layout()
-            plt.savefig('Output/Pt-interface/P-up/' + str(self.layers) + '-layers' + '.png', transparent=True, dpi=300)
+            plt.savefig(output_directory + str(self.layers) + '-layers' + '.png', transparent=True, dpi=300)
         else:
             for a in self.atoms:
                 for b in self.basis_atoms:
@@ -172,7 +177,7 @@ def dipolar_energy_supercell(spin: np.ndarray, dimension: list) -> float:
     # Notice that you need to change center atom as the layers become thicker
     energy = dipolar_energy(super_cell.basis_atoms[center], super_cell.atoms)
     # print(super_cell.basis_atoms[0])
-    print('Supercell: {} \t E_dip: {}'.format(dimension, energy))
+    # print('Supercell: {} \t E_dip: {}'.format(dimension, energy))
     return energy
 
 
@@ -183,10 +188,9 @@ dipolar_energy_sx = partial(dipolar_energy_supercell, s_x)
 # TODO: Use multithreading to control calculating multiple systems while using multiprocessing to speed up running on
 # one task
 def main():
-    executor = concurrent.futures.ProcessPoolExecutor()
-    for e_sz in executor.map(dipolar_energy_sz, supercells):
+    for e_sz in process_map(dipolar_energy_sz, supercells, desc=system + "-Sz" + "-" + str(center)):
         e_dip_sz.append(e_sz)
-    for e_sx in executor.map(dipolar_energy_sx, supercells):
+    for e_sx in process_map(dipolar_energy_sx, supercells, desc=system + "-Sx" + "-" + str(center)):
         e_dip_sx.append(e_sx)
 
 
@@ -205,7 +209,7 @@ def delta(datalist: list) -> list:
 
 
 def data_writer(data_list: list, diff_list: list, name: str) -> None:
-    with open('Output/Pt-interface/P-up/' + name + '-' + system + '-' + str(center) + '-' + str(supercell_limit) + 'x' + str(
+    with open(output_directory + name + '-' + system + '-' + str(center) + '-' + str(supercell_limit) + 'x' + str(
             supercell_limit) + '-energy.csv', 'w',
               newline='') as file_handler:
         csv_writer = csv.writer(file_handler, delimiter=' ')
@@ -215,7 +219,7 @@ def data_writer(data_list: list, diff_list: list, name: str) -> None:
 
 if __name__ == '__main__':
     main()
-    print(system, layers)
+    print(system, "Center atom is {}".format(center))
     print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
     print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
     delta_sx = delta(e_dip_sx)
@@ -223,9 +227,9 @@ if __name__ == '__main__':
     data_writer(e_dip_sx, delta_sx, 'Sx')
     data_writer(e_dip_sz, delta_sz, 'Sz')
     # Plot results
-    plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
-    plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
-    plt.show()
+    # plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
+    # plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
+    # plt.show()
 
 # sc = SuperCell(basis, bv, np.array([0, 0, 5]), [2, 2, 1], layers=6)
 # sc.plot_atoms(basis_only=True)
