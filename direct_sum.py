@@ -2,6 +2,7 @@ import concurrent.futures
 from functools import partial
 import csv
 import argparse
+import math
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -167,8 +168,10 @@ supercell_limit = 200
 supercells = [[n, n, 1] for n in range(2, supercell_limit)]
 e_dip_sz = []
 e_dip_sx = []
+e_dip_s = []
 s_z = np.array([0, 0, 5])
 s_x = np.array([5, 0, 0])
+s = math.sqrt(2) / 2 * np.array([5, 5, 0])
 
 
 # Auxiliary function for multiprocessing (one parameter only)
@@ -183,15 +186,18 @@ def dipolar_energy_supercell(spin: np.ndarray, dimension: list) -> float:
 
 dipolar_energy_sz = partial(dipolar_energy_supercell, s_z)
 dipolar_energy_sx = partial(dipolar_energy_supercell, s_x)
+dipolar_energy_s = partial(dipolar_energy_supercell, s)
 
 
 # TODO: Use multithreading to control calculating multiple systems while using multiprocessing to speed up running on
 # one task
 def main():
-    for e_sz in process_map(dipolar_energy_sz, supercells, desc=system + "-Sz" + "-" + str(center)):
-        e_dip_sz.append(e_sz)
-    for e_sx in process_map(dipolar_energy_sx, supercells, desc=system + "-Sx" + "-" + str(center)):
-        e_dip_sx.append(e_sx)
+    # for e_sz in process_map(dipolar_energy_sz, supercells, desc=system + "-Sz" + "-" + str(center)):
+    #     e_dip_sz.append(e_sz)
+    # for e_sx in process_map(dipolar_energy_sx, supercells, desc=system + "-Sx" + "-" + str(center)):
+    #     e_dip_sx.append(e_sx)
+    for e_s in process_map(dipolar_energy_s, supercells, desc=system + "-S[1,1,0]" + "-" + str(center)):
+        e_dip_s.append(e_s)
 
 
 def delta(datalist: list) -> list:
@@ -220,18 +226,20 @@ def data_writer(data_list: list, diff_list: list, name: str) -> None:
 if __name__ == '__main__':
     main()
     print(system, "Center atom is {}".format(center))
-    print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
-    print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
-    delta_sx = delta(e_dip_sx)
-    delta_sz = delta(e_dip_sz)
-    data_writer(e_dip_sx, delta_sx, 'Sx')
-    data_writer(e_dip_sz, delta_sz, 'Sz')
+    # print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
+    # print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
+    print("Dipolar Energy [1,1,0] = {}".format(e_dip_s[-1]))
+    # delta_sx = delta(e_dip_sx)
+    # delta_sz = delta(e_dip_sz)
+    # data_writer(e_dip_sx, delta_sx, 'Sx')
+    # data_writer(e_dip_sz, delta_sz, 'Sz')
+    data_writer(e_dip_s, delta(e_dip_s), 'S[1,1,0]')
     # Plot results
     # plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
     # plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
     # plt.show()
 
-# sc = SuperCell(basis, bv, np.array([0, 0, 5]), [2, 2, 1], layers=6)
+# sc = SuperCell(basis, bv, math.sqrt(2) / 2 * np.array([5, 5, 0]), [2, 2, 1], layers=6)
 # sc.plot_atoms(basis_only=True)
 # e_dip = dipolar_energy(sc.basis_atoms[2], sc.atoms)
 # print(len(sc.basis_atoms))
