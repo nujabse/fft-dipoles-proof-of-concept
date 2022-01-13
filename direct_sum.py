@@ -21,7 +21,11 @@ parser.add_argument('-c', required=True, dest='center', help='Specify the center
 parser.add_argument('-l', required=True, dest='layers', help='Input how many layers are the system', type=int)
 parser.add_argument('-s', required=True, dest='system', help='Specify the caculation system name', type=str)
 parser.add_argument('-d', required=True, dest='output', help='Input the output file directory', type=str)
-parser.add_argument('-m', default=5, dest='magmom', help="Input the strength of the magnetic moment", type=int)
+parser.add_argument('-m', default=5.0, dest='magmom_strength', help="Input the strength of the magnetic moment", type=float)
+parser.add_argument('-phi', default=0.0, dest='magmom_phi', help="Input the phi angle of the magnetic moment (in degrees)", type=float)
+parser.add_argument('-theta', default=0.0, dest='magmom_theta', help="Input the theta angle of the magnetic moment (in degrees)", type=float)
+parser.add_argument('-steps', default=200, dest='steps', help='Set the iteration steps', type=int)
+
 args = parser.parse_args()
 
 poscar = args.poscar
@@ -29,7 +33,11 @@ center = args.center
 layers = args.layers
 system = args.system
 output_directory = args.output
-magmom = args.magmom
+steps = args.steps
+# Now we need to do in-plane dipolar energy test
+magmom_strength = args.magmom_strength
+magmom_angle_theta = args.magmom_theta
+magmom_angle_phi = args.magmom_phi
 
 # get only the Mn atoms
 direct_struct = mg.Structure.from_file(poscar)
@@ -43,7 +51,7 @@ basis_frac = np.asarray(Mn_direct)
 basis = basis_cartesian
 
 # Precision of printed output
-np.set_printoptions(precision=10)
+np.set_printoptions(precision=15)
 
 
 class Atom:
@@ -163,7 +171,7 @@ def dipolar_energy(center: Atom, lattice: list) -> float:
     return energy
 
 
-supercell_limit = 200
+supercell_limit = steps
 # Here we are starting from calculating supercell 2x2x1
 supercells = [[n, n, 1] for n in range(2, supercell_limit)]
 e_dip_sz = []
@@ -171,8 +179,15 @@ e_dip_sx = []
 e_dip_s = []
 s_z = np.array([0, 0, 5])
 s_x = np.array([5, 0, 0])
-s = math.sqrt(2) / 2 * np.array([5, 5, 0])
-
+# s = np.array([5, 5, 0])
+# use physical spherical representations for calculations
+phi_angle = math.radians(magmom_angle_phi)
+theta_angle = math.radians(magmom_angle_theta)
+m_x = math.sin(theta_angle) * math.cos(phi_angle)
+m_y = math.sin(theta_angle) * math.sin(phi_angle)
+m_z = math.cos(theta_angle)
+s = magmom_strength * np.array([m_x, m_y, m_z])
+hkl = '{:.3f},{:.3f},{:0.3f}'.format(m_x, m_y, m_z)
 
 # Auxiliary function for multiprocessing (one parameter only)
 def dipolar_energy_supercell(spin: np.ndarray, dimension: list) -> float:
@@ -196,7 +211,7 @@ def main():
     #     e_dip_sz.append(e_sz)
     # for e_sx in process_map(dipolar_energy_sx, supercells, desc=system + "-Sx" + "-" + str(center)):
     #     e_dip_sx.append(e_sx)
-    for e_s in process_map(dipolar_energy_s, supercells, desc=system + "-S[1,1,0]" + "-" + str(center)):
+    for e_s in process_map(dipolar_energy_s, supercells, desc=system + "-S-" + hkl + "-" + str(center)):
         e_dip_s.append(e_s)
 
 
@@ -225,15 +240,15 @@ def data_writer(data_list: list, diff_list: list, name: str) -> None:
 
 if __name__ == '__main__':
     main()
-    print(system, "Center atom is {}".format(center))
+    # print(system, "Center atom is {}".format(center))
     # print("Dipolar Energy Sz = {}".format(e_dip_sz[-1]))
     # print("Dipolar Energy Sx = {}".format(e_dip_sx[-1]))
-    print("Dipolar Energy [1,1,0] = {}".format(e_dip_s[-1]))
+    print("Phi angle = {} Dipolar Energy {} = {}".format(magmom_angle_phi, hkl, e_dip_s[-1]))
     # delta_sx = delta(e_dip_sx)
     # delta_sz = delta(e_dip_sz)
     # data_writer(e_dip_sx, delta_sx, 'Sx')
     # data_writer(e_dip_sz, delta_sz, 'Sz')
-    data_writer(e_dip_s, delta(e_dip_s), 'S[1,1,0]')
+    data_writer(e_dip_s, delta(e_dip_s), 'S-' + str(magmom_angle_phi) + "-" + str(magmom_angle_theta))
     # Plot results
     # plt.plot(range(2, supercell_limit), e_dip_sx, 'r')
     # plt.plot(range(2, supercell_limit), e_dip_sz, 'b')
